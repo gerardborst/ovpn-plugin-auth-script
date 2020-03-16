@@ -28,6 +28,9 @@
 /********** Constants */
 /* For consistency in log messages */
 #define PLUGIN_NAME "auth-script"
+#define STRINGIZE(x) #x
+#define STRINGIZE_VALUE_OF(x) STRINGIZE(x)
+
 #define OPENVPN_PLUGIN_VERSION_MIN 3
 #define SCRIPT_NAME_IDX 0
 
@@ -43,18 +46,17 @@ static int deferred_handler(struct plugin_context *context,
                 const char *envp[])
 {
         plugin_log_t log = context->plugin_log;
-        pid_t pid;
 
         log(PLOG_DEBUG, PLUGIN_NAME, 
                         "Deferred handler using script_path=%s", 
                         context->argv[SCRIPT_NAME_IDX]);
 
-        pid = fork();
+        pid_t pid1 = fork();
 
         /* Parent - child failed to fork */
-        if (pid < 0) {
+        if (pid1 < 0) {
                 log(PLOG_ERR, PLUGIN_NAME, 
-                                "pid failed < 0 check, got %d", pid);
+                                "fork failed: %s", strerror(errno));
                 return OPENVPN_PLUGIN_FUNC_ERROR;
         }
 
@@ -63,132 +65,35 @@ static int deferred_handler(struct plugin_context *context,
          * Here we wait until that child completes before notifying OpenVPN of
          * our status.
          */
-        if (pid > 0) {
-                pid_t wait_rc;
-                int wstatus;
-
-                log(PLOG_DEBUG, PLUGIN_NAME, "child pid is %d", pid);
-                
-                /* Block until the child returns */
-                wait_rc = waitpid(pid, &wstatus, 0);
-
-                /* Values less than 0 indicate no child existed */
-                if (wait_rc < 0) {
-                        log(PLOG_ERR, PLUGIN_NAME,
-                                        "wait failed for pid %d, waitpid got %d",
-                                        pid, wait_rc);
-                        return OPENVPN_PLUGIN_FUNC_ERROR;
-                }
-
-                /* WIFEXITED will be true if the child exited normally, any
-                 * other return indicates an abnormal termination.
-                 */
-                if (WIFEXITED(wstatus)) {
-                        log(PLOG_DEBUG, PLUGIN_NAME, 
-                                        "child pid %d exited with status %d", 
-                                        pid, WEXITSTATUS(wstatus));
-                        return WEXITSTATUS(wstatus);
-                }
-
-                log(PLOG_ERR, PLUGIN_NAME,
-                                "child pid %d terminated abnormally",
-                                pid);
-                return OPENVPN_PLUGIN_FUNC_ERROR;
+        if (pid1 > 0) {
+        	waitpid(pid1, NULL, 0);
+        	return OPENVPN_PLUGIN_FUNC_DEFERRED;
         }
 
 
         /* Child Control - Spin off our sucessor */
-        pid = fork();
+        log(PLOG_DEBUG, PLUGIN_NAME, "In child");
+        pid_t pid2 = fork();
 
-        /* Notify our parent that our child faild to fork */
-        if (pid < 0) 
-                exit(OPENVPN_PLUGIN_FUNC_ERROR);
+        /* Notify our parent that our child failed to fork */
+        if (pid2 < 0) {
+        	log(PLOG_ERR, PLUGIN_NAME, "fork failed in child: %s", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
         
-        /* Let our parent know that our child is working appropriately */
-        if (pid > 0)
-                exit(OPENVPN_PLUGIN_FUNC_DEFERRED);
+        /* new parent: exit right away */
+        if (pid2 > 0)
+        	exit(EXIT_SUCCESS);
 
         /* Child Spawn - This process actually spawns the script */
         
-        /* Daemonize */
-        umask(0);
-        setsid();
-
-        /* Close open files and move to root */
-        int chdir_rc = chdir("/");
-        if (chdir_rc < 0)
-                log(PLOG_DEBUG, PLUGIN_NAME,
-                                "Error trying to change pwd to \'/\'");
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
+        log(PLOG_DEBUG, PLUGIN_NAME, "In grand-child");
 
         int execve_rc = execve(context->argv[0], 
                         (char *const*)context->argv, 
                         (char *const*)envp);
         if ( execve_rc == -1 ) {
-                switch(errno) {
-                        case E2BIG:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: E2BIG");
-                                break;
-                        case EACCES:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: EACCES");
-                                break;
-                        case EAGAIN:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: EAGAIN");
-                                break;
-                        case EFAULT:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: EFAULT");
-                                break;
-                        case EINTR:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: EINTR");
-                                break;
-                        case EINVAL:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: EINVAL");
-                                break;
-                        case ELOOP:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ELOOP");
-                                break;
-                        case ENAMETOOLONG:
-                                log(PLOG_DEBUG, PLUGIN_NAME,
-                                                "Error trying to exec: ENAMETOOLONG");
-                                break;
-                        case ENOENT:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ENOENT");
-                                break;
-                        case ENOEXEC:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ENOEXEC");
-                                break;
-                        case ENOLINK:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ENOLINK");
-                                break;
-                        case ENOMEM:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ENOMEM");
-                                break;
-                        case ENOTDIR:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ENOTDIR");
-                                break;
-                        case ETXTBSY:
-                                log(PLOG_DEBUG, PLUGIN_NAME, 
-                                                "Error trying to exec: ETXTBSY");
-                                break;
-                        default:
-                                log(PLOG_ERR, PLUGIN_NAME, 
-                                                "Error trying to exec: unknown, errno: %d", 
-                                                errno);
-                }
+        	log(PLOG_ERR, PLUGIN_NAME, "Error trying to execve in grandchild: [%s]: [%s]", strerror(errno), context->argv[0]);
         }
         exit(EXIT_FAILURE);
 }
@@ -210,6 +115,10 @@ OPENVPN_EXPORT int openvpn_plugin_open_v3(const int struct_version,
 {
         plugin_log_t log = arguments->callbacks->plugin_log;
         log(PLOG_DEBUG, PLUGIN_NAME, "FUNC: openvpn_plugin_open_v3");
+
+        log(PLOG_NOTE, PLUGIN_NAME, "Version: [%s]", STRINGIZE_VALUE_OF(VERSION));
+        log(PLOG_NOTE, PLUGIN_NAME, "Commit Hash: [%s]", STRINGIZE_VALUE_OF(COMMIT_HASH));
+        log(PLOG_NOTE, PLUGIN_NAME, "Build Time: [%s]", STRINGIZE_VALUE_OF(BUILD_TIME));
 
         struct plugin_context *context = NULL;
 

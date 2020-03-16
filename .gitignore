@@ -52,3 +52,7 @@ dkms.conf
 
 # YCM Plugin Config Files
 .ycm_extra_conf.py
+
+
+NOTES.md
+/.project
