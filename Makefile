@@ -11,31 +11,11 @@ VERSION_TAG := Development
 endif
 
 CC ?= cc
-CFLAGS ?= -O -Wall -Wextra -Wformat-security -D_FORTIFY_SOURCE=2
-CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200809L -DBUILD_TIME=$(BUILD_TIME) -DVERSION=$(VERSION_TAG) -DCOMMIT_HASH=$(COMMIT_HASH)
-LDFLAGS += -fPIC -shared
+CFLAGS ?= -O -Wall -Wextra -Wformat-security -D_FORTIFY_SOURCE=2 -fstack-protector-strong
+CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200809L -fPIC 
+LDFLAGS += -shared
 
-# FreeBSD puts the openvpn header in a different location unknown to clang
-IPATH_FREEBSD = /usr/local/include/
-
-# Add OS Specific build flags
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),FreeBSD)
-	# Add the include path for openvpn-plugin.h
-	CFLAGS += -I$(IPATH_FREEBSD) 
-	# Ensure the signals we need are visible
-	CFLAGS += -D_XOPEN_SOURCE=600
-	
-	# BSD uses Clang - we need to check for stack-protector-strong flag 
-	STACK_PROTECT := $(shell $(CC) --help | grep stack-protector-strong)
-	ifneq ($(filter %stack-protector-strong, $(STACK_PROTECT)),)
-		CFLAGS += -fstack-protector-strong 
-	endif
-else
-	CFLAGS += -fstack-protector-strong
-endif
-
-$(info Building for $(UNAME_S))
+CFLAGS += -DBUILD_TIME=$(BUILD_TIME) -DVERSION=$(VERSION_TAG) -DCOMMIT_HASH=$(COMMIT_HASH) -I. -I/usr/include/openvpn
 
 # Output Files
 SRC 	= $(wildcard *.c)
@@ -43,6 +23,7 @@ OUT	= $(SRC:%.c=%.so)
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+	tar -czvf openvpn-plugin-auth-script.linux-amd64.tar.gz openvpn-plugin-auth-script.so
 
 all: plugin
 

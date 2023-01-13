@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - main
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: get_include
+      run: |
+        curl https://swupdate.openvpn.org/community/releases/openvpn-2.5.8.tar.gz | tar xz openvpn-2.5.8/include/openvpn-plugin.h
+        cp openvpn-2.5.8/include/openvpn-plugin.h openvpn-plugin.h
+    - name: build
+      run: |
+        make plugin
+        sha256sum openvpn-plugin-auth-script.linux-amd64.tar.gz > sha256sum.txt    
+    - uses: actions/upload-artifact@v3
+      with:
+        name: openvpn-plugin-auth-script
+        path: |
+          ./openvpn-plugin-auth-script.linux-amd64.tar.gz
+          ./sha256sum.txt
+        if-no-files-found: error
