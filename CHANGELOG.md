@@ -1,5 +1,6 @@
 ## main / unreleased
 
+* [CHANGE] Get openvpn header file from version 2.6.9
 * [CHANGE] Update to Node.js 20
 * [FEATURE]
 * [ENHANCEMENT]
