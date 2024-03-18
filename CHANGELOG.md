@@ -1,3 +1,7 @@
+## 1.0.4 / 2024-03-18
+
+* [CHANGE] Change license
+
 ## 1.0.3 / 2024-03-18
 
 * [CHANGE] Change name to ovpn-plugin-auth-script
