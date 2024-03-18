@@ -23,7 +23,7 @@ OUT	= $(SRC:%.c=%.so)
 
 %.so: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
-	tar -czvf openvpn-plugin-auth-script.linux-amd64.tar.gz openvpn-plugin-auth-script.so
+	tar -czvf ovpn-plugin-auth-script.linux-amd64.tar.gz ovpn-plugin-auth-script.so
 
 all: plugin
 

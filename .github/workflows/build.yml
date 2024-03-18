@@ -20,11 +20,11 @@ jobs:
     - name: build
       run: |
         make plugin
-        sha256sum openvpn-plugin-auth-script.linux-amd64.tar.gz > sha256sum.txt    
+        sha256sum ovpn-plugin-auth-script.linux-amd64.tar.gz > sha256sum.txt    
     - uses: actions/upload-artifact@v4
       with:
-        name: openvpn-plugin-auth-script
+        name: ovpn-plugin-auth-script
         path: |
-          ./openvpn-plugin-auth-script.linux-amd64.tar.gz
+          ./ovpn-plugin-auth-script.linux-amd64.tar.gz
           ./sha256sum.txt
         if-no-files-found: error

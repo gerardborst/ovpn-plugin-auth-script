@@ -20,11 +20,11 @@ jobs:
         fetch-depth: 0
     - uses: actions/download-artifact@v4
       with:
-        name: openvpn-plugin-auth-script
+        name: ovpn-plugin-auth-script
     - name: release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "openvpn-plugin-auth-script.linux-amd64.tar.gz,sha256sum.txt"
+        artifacts: "ovpn-plugin-auth-script.linux-amd64.tar.gz,sha256sum.txt"
         bodyFile: CHANGELOG.md
         allowUpdates: true
         removeArtifacts: true
